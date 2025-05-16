@@ -12,7 +12,7 @@ export class EstudianteService {
     ){}
 
     async crearEstudiante(estudiante: EstudianteEntity): Promise<EstudianteEntity> {
-        if (!estudiante.correo.includes('@') && !estudiante.correo.includes('.')) {
+        if (!estudiante.correo.includes('@') || !estudiante.correo.includes('.')) {
             throw new BusinessLogicException(`El correo tiene que ser válido`, BusinessError.PRECONDITION_FAILED);
         } 
 
@@ -22,9 +22,15 @@ export class EstudianteService {
         return await this.estudianteRepository.save(estudiante);
     }
 
+    async findEstudianteById(id: string): Promise<EstudianteEntity> {
+        const estudiante: EstudianteEntity | null = await this.estudianteRepository.findOne({where: {id}, relations: ["actividades", "resenas"] } );
+        if (!estudiante) throw new BusinessLogicException("El estudiante con el id dado no fue encontrado.", BusinessError.NOT_FOUND);
+        return estudiante;
+    }
+
     async InscribirseActividad(estudianteID: string, actividadID: string): Promise<EstudianteEntity> {
         const estudiante: EstudianteEntity | null = await this.estudianteRepository.findOne({where: {id: estudianteID, actividades: {id: actividadID}}, relations: ["actividades", "resenas"] } );
-        if (!estudiante) throw new BusinessLogicException("El usuario con el id dado no fue encontrado.", BusinessError.NOT_FOUND);
+        if (!estudiante) throw new BusinessLogicException("El estudiante con el id dado no fue encontrado.", BusinessError.NOT_FOUND);
         return await this.estudianteRepository.save(estudiante);
     }
 }
