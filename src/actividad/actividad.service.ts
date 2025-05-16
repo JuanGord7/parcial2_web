@@ -24,7 +24,9 @@ export class ActividadService {
         if (estado !== "abierta" && estado !== "Cerrada" && estado !== "Finalizada") {
             throw new BusinessLogicException(`El estado tiene que ser abierta, Cerrada o Finalizada`, BusinessError.PRECONDITION_FAILED);
         }
-        if (actividad.estado) {
+        if (actividad.estado === "Abierta" && estado === "Cerrada") {
+            throw new BusinessLogicException(`No se puede cambiar el estado de Abierta a Cerrada`, BusinessError.PRECONDITION_FAILED);
+        }
         return await this.actividadRepository.save(actividad);
     }
 }
