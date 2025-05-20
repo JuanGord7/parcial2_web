@@ -7,26 +7,64 @@ import { ActividadEntity } from './actividad.entity';
 @Injectable()
 export class ActividadService {
     constructor(
-       @InjectRepository(ActividadEntity)
-       private readonly actividadRepository: Repository<ActividadEntity>
-    ){}
+        @InjectRepository(ActividadEntity)
+        private readonly actividadRepository: Repository<ActividadEntity>
+    ) {}
 
     async crearActividad(actividad: ActividadEntity): Promise<ActividadEntity> {
-        if (actividad.titulo.length > 15 || actividad.titulo.includes(' ')) {
-            throw new BusinessLogicException(`El título tiene que ser de longitud mayor a 15 y no puede contener caracteres`, BusinessError.PRECONDITION_FAILED);
+        const regex = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/;
+
+        if (actividad.titulo.length < 15 || !regex.test(actividad.titulo)) {
+        throw new BusinessLogicException(
+            `El título debe tener al menos 15 caracteres y no debe contener símbolos.`,
+            BusinessError.PRECONDITION_FAILED
+        );
         }
+
+        actividad.estado = "0";
         return await this.actividadRepository.save(actividad);
     }
 
-    async cambiarEstado(actividadID: string, estado: string): Promise<ActividadEntity> {
-        const actividad: ActividadEntity | null = await this.actividadRepository.findOne({where: {id: actividadID}, relations: ["estudiantes", "resenas"] } );
-        if (!actividad) throw new BusinessLogicException("El usuario con el id dado no fue encontrado.", BusinessError.NOT_FOUND);
-        if (estado !== "abierta" && estado !== "Cerrada" && estado !== "Finalizada") {
-            throw new BusinessLogicException(`El estado tiene que ser abierta, Cerrada o Finalizada`, BusinessError.PRECONDITION_FAILED);
+    async cambiarEstado(actividadID: string, nuevoEstado: string): Promise<ActividadEntity> {
+        const actividad = await this.actividadRepository.findOne({
+        where: { id: actividadID },
+        relations: ['estudiantes']
+        });
+
+        if (!actividad) {
+        throw new BusinessLogicException("La actividad con el id dado no fue encontrada.", BusinessError.NOT_FOUND);
         }
-        if (actividad.estado === "Abierta" && estado === "Cerrada") {
-            throw new BusinessLogicException(`No se puede cambiar el estado de Abierta a Cerrada`, BusinessError.PRECONDITION_FAILED);
+
+        const estadosValidos = ["0", "1", "2"];
+        if (!estadosValidos.includes(nuevoEstado)) {
+        throw new BusinessLogicException(`El estado debe ser '0' (abierta), '1' (cerrada) o '2' (finalizada).`, BusinessError.PRECONDITION_FAILED);
         }
+
+        if (actividad.estado === nuevoEstado) {
+        return actividad;
+        }
+
+        const inscritos = actividad.estudiantes.length;
+        const cupo = actividad.cupoMaximo;
+
+        if (nuevoEstado === "1") {
+        const porcentaje = inscritos / cupo;
+        if (porcentaje < 0.8) {
+            throw new BusinessLogicException(`Solo se puede cerrar si al menos el 80% del cupo está ocupado.`, BusinessError.PRECONDITION_FAILED);
+        }
+        }
+
+        if (nuevoEstado === "2") {
+        if (inscritos < cupo) {
+            throw new BusinessLogicException(`Solo se puede finalizar si el cupo está completamente lleno.`, BusinessError.PRECONDITION_FAILED);
+        }
+        }
+
+        actividad.estado = nuevoEstado;
         return await this.actividadRepository.save(actividad);
+    }
+
+    async findAllActividadesByDate(fecha: string): Promise<ActividadEntity[]> {
+        return await this.actividadRepository.find({ where: { fecha } });
     }
 }

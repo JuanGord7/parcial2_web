@@ -22,8 +22,8 @@ export class ResenaEntity {
   fecha: string;
 
   @ManyToOne(() => EstudianteEntity, estudiante => estudiante.resenas)
-  estudiante: EstudianteEntity[];
+  estudiante: EstudianteEntity;
 
   @ManyToOne(() => ActividadEntity, actividad => actividad.resenas)
-  actividad: ActividadEntity[];
+  actividad: ActividadEntity;
 }
