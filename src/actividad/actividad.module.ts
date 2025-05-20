@@ -7,6 +7,7 @@ import { ActividadController } from './actividad.controller';
 @Module({
   imports: [TypeOrmModule.forFeature([ActividadEntity])],
   providers: [ActividadService],
-  controllers: [ActividadController]
+  controllers: [ActividadController],
+  exports: [TypeOrmModule.forFeature([ActividadEntity])]
 })
 export class ActividadModule {}

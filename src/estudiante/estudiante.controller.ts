@@ -1,4 +1,4 @@
-import {Body, Controller, Get, Param, Post, UseInterceptors} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseInterceptors } from '@nestjs/common';
 import { EstudianteService } from './estudiante.service';
 import { EstudianteEntity } from './estudiante.entity';
 import { CreateEstudianteDto } from './estudiante.dto';
@@ -17,13 +17,5 @@ export class EstudianteController {
   @Get(':id')
   async findEstudianteById(@Param('id') id: string): Promise<EstudianteEntity> {
     return this.estudianteService.findEstudianteById(id);
-  }
-
-  @Post(':estudianteId/inscribir/:actividadId')
-  async inscribirseActividad(
-    @Param('estudianteId') estudianteId: string,
-    @Param('actividadId') actividadId: string
-  ): Promise<EstudianteEntity> {
-    return this.estudianteService.InscribirseActividad(estudianteId, actividadId);
   }
 }
