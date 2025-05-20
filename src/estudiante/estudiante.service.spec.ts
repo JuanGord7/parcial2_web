@@ -93,4 +93,20 @@ describe('EstudianteService', () => {
       await expect(service.crearEstudiante(estudiante)).rejects.toHaveProperty('message', 'El semestre debe estar entre 1 y 10');
     });
   });
+  describe('findEstudianteById', () => {
+    it('debería retornar un estudiante existente por id', async () => {
+      const estudianteGuardado = estudiantesList[0];
+      const estudiante = await service.findEstudianteById(estudianteGuardado.id);
+      expect(estudiante).not.toBeNull();
+      expect(estudiante.id).toBe(estudianteGuardado.id);
+      expect(estudiante.nombre).toBe(estudianteGuardado.nombre);
+    });
+
+    it('debería lanzar error si el estudiante no existe', async () => {
+      await expect(service.findEstudianteById('id-no-existente')).rejects.toHaveProperty(
+        'message',
+        'El estudiante con el id dado no fue encontrado.'
+      );
+    });
+  });
 });
