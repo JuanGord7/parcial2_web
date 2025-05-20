@@ -29,7 +29,7 @@ export class EstudianteEntity {
 
   @ManyToMany(() => ActividadEntity, actividades => actividades.estudiantes)
   @JoinTable()
-  actividades: ActividadEntity;
+  actividades: ActividadEntity[];
 
   @OneToMany(() => ResenaEntity, resena => resena.estudiante)
   resenas: ResenaEntity[];
