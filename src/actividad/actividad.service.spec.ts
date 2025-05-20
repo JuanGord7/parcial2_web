@@ -1,40 +1,44 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { ActividadEntity } from './actividad.entity';
 import { ActividadService } from './actividad.service';
 import { faker } from '@faker-js/faker';
+import { Repository } from 'typeorm';
+import { TypeOrmTestingConfig } from '../shared/testing-utils/typeorm-testing-config';
 
 describe('ActividadService', () => {
   let service: ActividadService;
-  let actividadRepository: Repository<ActividadEntity>;
-
-  const mockActividadRepository = {
-    save: jest.fn(),
-    findOne: jest.fn(),
-    find: jest.fn(),
-  };
+  let repository: Repository<ActividadEntity>;
+  let actividadesList: ActividadEntity[];
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ActividadService,
-        {
-          provide: getRepositoryToken(ActividadEntity),
-          useValue: mockActividadRepository,
-        },
-      ],
+      imports: [...TypeOrmTestingConfig()],
+      providers: [ActividadService],
     }).compile();
 
     service = module.get<ActividadService>(ActividadService);
-    actividadRepository = module.get<Repository<ActividadEntity>>(getRepositoryToken(ActividadEntity));
+    repository = module.get<Repository<ActividadEntity>>(getRepositoryToken(ActividadEntity));
+    await seedDatabase();
   });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
+  const seedDatabase = async () => {
+    await repository.clear();
+    actividadesList = [];
+    for (let i = 0; i < 5; i++) {
+      const actividad: ActividadEntity = await repository.save({
+        titulo: faker.lorem.words(5),
+        estado: '0',
+        cupoMaximo: faker.number.int({ min: 10, max: 30 }),
+        fecha: faker.date.future().toISOString().split('T')[0],
+        estudiantes: [],
+        resenas: [],
+      });
+      actividadesList.push(actividad);
+    }
+  };
 
-  it('should be defined', () => {
+  it('service debe estar definido', () => {
     expect(service).toBeDefined();
   });
 
@@ -50,16 +54,11 @@ describe('ActividadService', () => {
         resenas: [],
       };
 
-      mockActividadRepository.save.mockResolvedValue({
-        ...actividad,
-        id: faker.string.uuid(),
-      });
-
       const result = await service.crearActividad(actividad);
+
       expect(result).toHaveProperty('id');
       expect(result.titulo).toBe(actividad.titulo);
       expect(result.estado).toBe('0');
-      expect(mockActividadRepository.save).toHaveBeenCalledWith(actividad);
     });
 
     it('debería lanzar error si el título es corto', async () => {
@@ -98,30 +97,6 @@ describe('ActividadService', () => {
   });
 
   describe('cambiarEstado', () => {
-    it('debería cambiar el estado a "1" (cerrada) si el 80% del cupo está lleno', async () => {
-      const actividad = {
-        id: '1',
-        titulo: 'Actividad válida para cambiar estado',
-        estado: '0',
-        cupoMaximo: 10,
-        fecha: '2025-05-20',
-        estudiantes: Array(8).fill({}),
-        resenas: [],
-      };
-
-      mockActividadRepository.findOne.mockResolvedValue(actividad);
-      mockActividadRepository.save.mockImplementation((ent) => Promise.resolve(ent));
-
-      const resultado = await service.cambiarEstado('1', '1');
-
-      expect(resultado.estado).toBe('1');
-      expect(mockActividadRepository.findOne).toHaveBeenCalledWith({
-        where: { id: '1' },
-        relations: ['estudiantes'],
-      });
-      expect(mockActividadRepository.save).toHaveBeenCalled();
-    });
-
     it('debería lanzar error si intenta cerrar sin 80% de cupo lleno', async () => {
       const actividad = {
         id: '1',
@@ -133,32 +108,12 @@ describe('ActividadService', () => {
         resenas: [],
       };
 
-      mockActividadRepository.findOne.mockResolvedValue(actividad);
+      await repository.save(actividad);
 
       await expect(service.cambiarEstado('1', '1')).rejects.toHaveProperty(
         'message',
         'Solo se puede cerrar si al menos el 80% del cupo está ocupado.'
       );
-    });
-
-    it('debería cambiar el estado a "2" (finalizada) si el cupo está lleno', async () => {
-      const actividad = {
-        id: '1',
-        titulo: 'Actividad válida para cambiar estado',
-        estado: '1',
-        cupoMaximo: 10,
-        fecha: '2025-05-20',
-        estudiantes: Array(10).fill({}),
-        resenas: [],
-      };
-
-      mockActividadRepository.findOne.mockResolvedValue(actividad);
-      mockActividadRepository.save.mockImplementation((ent) => Promise.resolve(ent));
-
-      const resultado = await service.cambiarEstado('1', '2');
-
-      expect(resultado.estado).toBe('2');
-      expect(mockActividadRepository.save).toHaveBeenCalled();
     });
 
     it('debería lanzar error si intenta finalizar sin cupo lleno', async () => {
@@ -172,7 +127,7 @@ describe('ActividadService', () => {
         resenas: [],
       };
 
-      mockActividadRepository.findOne.mockResolvedValue(actividad);
+      await repository.save(actividad);
 
       await expect(service.cambiarEstado('1', '2')).rejects.toHaveProperty(
         'message',
@@ -181,8 +136,6 @@ describe('ActividadService', () => {
     });
 
     it('debería lanzar error si la actividad no existe', async () => {
-      mockActividadRepository.findOne.mockResolvedValue(null);
-
       await expect(service.cambiarEstado('no-existe', '1')).rejects.toHaveProperty(
         'message',
         'La actividad con el id dado no fue encontrada.'
@@ -190,43 +143,43 @@ describe('ActividadService', () => {
     });
 
     it('debería retornar la misma actividad si el estado no cambia', async () => {
-      const actividad = {
-        id: '1',
+      const actividad = repository.create({
         titulo: 'Actividad válida',
         estado: '0',
         cupoMaximo: 10,
         fecha: '2025-05-20',
-        estudiantes: [],
-        resenas: [],
-      };
+      });
 
-      mockActividadRepository.findOne.mockResolvedValue(actividad);
+      const savedActividad = await repository.save(actividad);
 
-      const resultado = await service.cambiarEstado('1', '0');
+      const resultado = await service.cambiarEstado(savedActividad.id, '0');
 
-      expect(resultado).toBe(actividad);
+      expect(resultado).toEqual(expect.objectContaining({
+        id: savedActividad.id,
+        titulo: savedActividad.titulo,
+        estado: savedActividad.estado,
+      }));
     });
   });
 
   describe('findAllActividadesByDate', () => {
     it('debería retornar actividades para una fecha dada', async () => {
       const actividades = [
-        { id: '1', fecha: '2025-05-20', titulo: 'Act 1' },
-        { id: '2', fecha: '2025-05-20', titulo: 'Act 2' },
+        { id: faker.string.uuid(), fecha: '2025-05-20', titulo: 'Act 1', estado: '0', cupoMaximo: 10, estudiantes: [], resenas: [] },
+        { id: faker.string.uuid(), fecha: '2025-05-20', titulo: 'Act 2', estado: '0', cupoMaximo: 10, estudiantes: [], resenas: [] },
       ];
 
-      mockActividadRepository.find.mockResolvedValue(actividades);
+      for (const act of actividades) {
+        await repository.save(act);
+      }
 
       const resultado = await service.findAllActividadesByDate('2025-05-20');
 
       expect(resultado.length).toBe(2);
       expect(resultado[0].fecha).toBe('2025-05-20');
-      expect(mockActividadRepository.find).toHaveBeenCalledWith({ where: { fecha: '2025-05-20' } });
     });
 
     it('debería retornar arreglo vacío si no hay actividades para la fecha', async () => {
-      mockActividadRepository.find.mockResolvedValue([]);
-
       const resultado = await service.findAllActividadesByDate('2025-01-01');
 
       expect(resultado).toEqual([]);

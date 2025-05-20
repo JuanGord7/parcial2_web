@@ -15,10 +15,7 @@ export class ActividadController {
   }
 
   @Put(':id/estado/:nuevoEstado')
-  async cambiarEstado(
-    @Param('id') id: string,
-    @Param('nuevoEstado') nuevoEstado: string
-  ): Promise<ActividadEntity> {
+  async cambiarEstado(@Param('id') id: string, @Param('nuevoEstado') nuevoEstado: string): Promise<ActividadEntity> {
     return this.actividadService.cambiarEstado(id, nuevoEstado);
   }
 
